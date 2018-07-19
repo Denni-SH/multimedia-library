@@ -27,7 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
+AUTH_USER_MODEL = 'users.User'
 # Application definition
 
 INSTALLED_APPS = [
@@ -78,10 +78,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'multilibrary_db',
-        'USER' : 'library_user',
-        'PASSWORD' : '1111',
-        'HOST' : '127.0.0.1',
-        'PORT' : '5432',
+        'USER': 'library_user',
+        'PASSWORD': '1111',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
     }
 }
 

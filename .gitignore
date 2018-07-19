@@ -1,3 +1,5 @@
 env/
-notes.txt
 .idea/
+*.pyc
+migrations/
+__pycache__/
