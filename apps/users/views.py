@@ -14,15 +14,16 @@ class UserCreateView(CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            mandatory_fields = {'password', 'first_name', 'username','last_name', 'email'}
-            if valid_mandatory_fields(request.data, fields=mandatory_fields):
+            mandatory_fields = {'password', 'first_name', 'last_name', 'email'}
+            validation_status, validation_result= valid_mandatory_fields(request.data, fields=mandatory_fields)
+            if validation_status:
+                request.data['username'] = validation_result['username']
                 user = self.create(request, *args, **kwargs)
                 return Response(data={"is_successful": True,
                                       "user": user.data})
             else:
                 return Response({"is_successful": False,
-                                 "message": 'Mandatory fields are missed!'})
+                                 "message": validation_result})
         except Exception as error:
-            print(error.__dict__)
             return Response({"is_successful": False,
-                                 "message": error.__dict__['detail']['username'][0]})
+                             "message": error.__dict__['detail']})
