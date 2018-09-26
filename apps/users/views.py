@@ -20,14 +20,15 @@ class UserCreateView(CreateAPIView):
             validation_status, validation_result = validate_mandatory_fields(request.data, fields=mandatory_fields)
             if validation_status:
                 user = self.create(request, *args, **kwargs)
-                return Response(data={"is_successful": True,
-                                      "user": user.data})
+                response_data = generate_response(status=True, payload={"user": user.data})
+                return Response(response_data, status=status.HTTP_201_CREATED)
             else:
-                return Response({"is_successful": False,
-                                 "message": validation_result})
+                response_data = generate_response(status=False, payload={"message": validation_result})
+                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as error:
-            return Response({"is_successful": False,
-                             "message": error.__dict__['detail']})
+            response_data = generate_response(status=False, payload={"message": error.__dict__['detail']})
+            return Response(response_data, status=error.__dict__.get('status'))
 
 
 class UserLoginView(ObtainJSONWebToken):
