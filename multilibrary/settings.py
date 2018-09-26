@@ -38,8 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.users',
     'rest_framework',
+    'apps.users',
 ]
 
 MIDDLEWARE = [
@@ -105,6 +105,8 @@ REST_FRAMEWORK = {
 # JWT
 REST_USE_JWT = True
 
+# from rest_framework_jwt import utils
+# utils.
 JWT_AUTH = {
     'JWT_ENCODE_HANDLER':
     'rest_framework_jwt.utils.jwt_encode_handler',
@@ -119,9 +121,9 @@ JWT_AUTH = {
     'JWT_PAYLOAD_GET_USER_ID_HANDLER':
     'rest_framework_jwt.utils.jwt_get_user_id_from_payload_handler',
 
-    'JWT_RESPONSE_PAYLOAD_HANDLER':
-    # 'rest_framework_jwt.utils.jwt_response_payload_handler',
-    'apps.users.serializers.jwt_response_payload_handler',
+    # 'JWT_RESPONSE_PAYLOAD_HANDLER':
+    # # 'rest_framework_jwt.utils.jwt_response_payload_handler',
+    # 'apps.users.serializers.jwt_response_payload_handler',
 
     'JWT_SECRET_KEY': SECRET_KEY,
     'JWT_GET_USER_SECRET_KEY': None,

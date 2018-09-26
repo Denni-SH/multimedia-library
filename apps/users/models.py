@@ -19,7 +19,7 @@ class User(AbstractUser):
         new_user.password = kwargs.get('password')
         new_user.phone = kwargs.get('phone') if kwargs.get('phone') else None
         new_user.thumbnail = kwargs.get('thumbnail')
-        new_user.username = kwargs.get('username').lower() if kwargs.get('username') else None
+        new_user.username = kwargs.get('username')
         return new_user
 
     def __str__(self):

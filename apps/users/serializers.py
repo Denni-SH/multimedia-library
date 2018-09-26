@@ -1,6 +1,7 @@
-from rest_framework.serializers import ModelSerializer, Serializer
+from rest_framework.compat import authenticate
+from rest_framework.serializers import ModelSerializer
+from rest_framework_jwt.serializers import JSONWebTokenSerializer, jwt_payload_handler, jwt_encode_handler
 
-from .heplers import modify_reponse
 from .models import User
 
 
@@ -19,22 +20,47 @@ class UserCreateSerializer(ModelSerializer):
         return user
 
 
-class UserLoginSerializer(Serializer):
+class UserLoginSerializer(JSONWebTokenSerializer):
+
+    username_field = 'login'
+
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email',
                   'avatar', 'birth_date', 'phone', 'thumbnail']
 
+    def validate(self, attrs):
 
-def jwt_response_payload_handler(token, user=None, request=None):
-    """ Custom response payload handler.
+        password = attrs.get("password")
+        user_obj = User.objects.filter(email=attrs.get("login")).first() or User.objects.filter(
+            username=attrs.get("login")).first()
+        if user_obj is not None:
+            credentials = {
+                'username': user_obj.username,
+                'password': password
+            }
+            if all(credentials.values()):
+                authenticated_user = authenticate(**credentials)
+                if authenticated_user:
+                    if not authenticated_user.is_active:
+                        msg = ('User account is disabled.')
+                        return {'message': msg}
 
-    This function controlls the custom payload after login or token refresh. This data is returned through the web API.
-    """
-    response_instance = UserLoginSerializer(user).instance.__dict__
-    response_instance = modify_reponse(response_instance)
-    return {
-        "is_successful": True,
-        'token': token,
-        'user': response_instance
-    }
+                    payload = jwt_payload_handler(authenticated_user)
+
+                    return {
+                        'token': jwt_encode_handler(payload),
+                        'user': authenticated_user
+                    }
+                else:
+                    msg = ('Unable to log in with provided credentials.')
+                    return {'message': msg}
+
+            else:
+                msg = ('Must include "{username_field}" and "password".')
+                msg = msg.format(username_field=self.username_field)
+                return {'message': msg}
+
+        else:
+            msg = ('Account with this email/username does not exists')
+            return {'message': msg}
