@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import datetime
 import os
+import significant.configs as configs
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -20,14 +21,33 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 't_&!)_^kbkio@vubp+74qjdn9ci*5v_rl^du(_$=^b4+dk^c9e'
+SECRET_KEY = configs.SECRET_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# CUSTOM USER SETTINGS
 AUTH_USER_MODEL = 'users.User'
+
+# MAIL SETTINGS
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = configs.EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = configs.EMAIL_HOST_PASSWORD
+EMAIL_PORT = 587
+
+# REDIS related settings
+REDIS_HOST = 'localhost'
+REDIS_PORT = '6379'
+BROKER_URL = 'redis://' + REDIS_HOST + ':' + REDIS_PORT + '/0'
+BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
+CELERY_RESULT_BACKEND = 'redis://' + REDIS_HOST + ':' + REDIS_PORT + '/0'
+
+# IMAGE SETTINGS
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
 
 # Application definition
 
@@ -79,9 +99,9 @@ WSGI_APPLICATION = 'multilibrary.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'multilibrary_db',
-        'USER': 'library_user',
-        'PASSWORD': '1111',
+        'NAME': configs.DATABASE_NAME,
+        'USER': configs.DATABASE_USER,
+        'PASSWORD': configs.DATABASE_PASSWORD,
         'HOST': '127.0.0.1',
         'PORT': '5432',
     }
@@ -133,14 +153,14 @@ JWT_AUTH = {
     'JWT_VERIFY': True,
     'JWT_VERIFY_EXPIRATION': True,
     'JWT_LEEWAY': 0,
-    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=100),
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=3000),
     'JWT_AUDIENCE': None,
     'JWT_ISSUER': None,
 
     'JWT_ALLOW_REFRESH': False,
     'JWT_REFRESH_EXPIRATION_DELTA': datetime.timedelta(days=100),
 
-    'JWT_AUTH_HEADER_PREFIX': 'JWT',
+    'JWT_AUTH_HEADER_PREFIX': 'Bearer',
     'JWT_AUTH_COOKIE': None,
 
 }

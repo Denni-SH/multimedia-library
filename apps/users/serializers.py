@@ -28,6 +28,13 @@ class UserLoginSerializer(JSONWebTokenSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email',
                   'avatar', 'birth_date', 'phone', 'thumbnail']
+        extra_kwargs = {"password": {"write_only": True},
+                        "_state": {"write_only": True},
+                        "is_superuser": {"write_only": True},
+                        "is_staff": {"write_only": True},
+                        "is_active": {"write_only": True},
+                        "backend": {"write_only": True},
+                        }
 
     def validate(self, attrs):
 
@@ -43,7 +50,7 @@ class UserLoginSerializer(JSONWebTokenSerializer):
                 authenticated_user = authenticate(**credentials)
                 if authenticated_user:
                     if not authenticated_user.is_active:
-                        msg = ('User account is disabled.')
+                        msg = 'User account is disabled.'
                         return {'message': msg}
 
                     payload = jwt_payload_handler(authenticated_user)
@@ -53,14 +60,29 @@ class UserLoginSerializer(JSONWebTokenSerializer):
                         'user': authenticated_user
                     }
                 else:
-                    msg = ('Unable to log in with provided credentials.')
+                    msg = 'Unable to log in with provided credentials.'
                     return {'message': msg}
 
             else:
-                msg = ('Must include "{username_field}" and "password".')
+                msg = 'Must include "{username_field}" and "password".'
                 msg = msg.format(username_field=self.username_field)
                 return {'message': msg}
 
         else:
-            msg = ('Account with this email/username does not exists')
+            msg = 'Account with this email/username does not exists'
             return {'message': msg}
+
+
+class UserSerializer(ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email',
+                  'avatar', 'birth_date', 'phone', 'thumbnail']
+        extra_kwargs = {"password": {"write_only": True},
+                        "_state": {"write_only": True},
+                        "is_superuser": {"write_only": True},
+                        "is_staff": {"write_only": True},
+                        "is_active": {"write_only": True},
+                        "backend": {"write_only": True},
+                        }
