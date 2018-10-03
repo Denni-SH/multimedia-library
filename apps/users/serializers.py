@@ -1,18 +1,45 @@
+import copy
 from rest_framework.compat import authenticate
 from rest_framework.serializers import ModelSerializer
 from rest_framework_jwt.serializers import JSONWebTokenSerializer, jwt_payload_handler, jwt_encode_handler
 
 from .models import User
 
+USER_EXTRA_KWARGS = {("password",
+                      "_state",
+                      "is_superuser",
+                      "is_staff",
+                      "is_active",
+                      "backend"
+                      ): {"write_only": True},
+                     "email": {"read_only": True}
+                     }
 
-class UserCreateSerializer(ModelSerializer):
+USER_FIELDS = ['id',
+               'username',
+               'first_name',
+               'last_name',
+               'email',
+               'avatar',
+               'birth_date',
+               'phone',
+               'thumbnail']
+
+
+class UserSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email',
-                  'avatar', 'birth_date', 'phone', 'thumbnail', 'password']
-        extra_kwargs = {"password":
-                        {"write_only": True}
-                        }
+        fields = USER_FIELDS
+        extra_kwargs = USER_EXTRA_KWARGS
+
+
+class UserCreateSerializer(ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = USER_FIELDS
+        extra_kwargs = copy.deepcopy(USER_EXTRA_KWARGS)
+        extra_kwargs['email']['read_only'] = False
 
     def create(self, request, *args, **kwargs):
         user = User.create(**request)
@@ -24,17 +51,10 @@ class UserLoginSerializer(JSONWebTokenSerializer):
 
     username_field = 'login'
 
-    class Meta:
+    class Meta(UserSerializer.Meta):
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email',
-                  'avatar', 'birth_date', 'phone', 'thumbnail']
-        extra_kwargs = {"password": {"write_only": True},
-                        "_state": {"write_only": True},
-                        "is_superuser": {"write_only": True},
-                        "is_staff": {"write_only": True},
-                        "is_active": {"write_only": True},
-                        "backend": {"write_only": True},
-                        }
+        fields = USER_FIELDS
+        extra_kwargs = UserSerializer.Meta.extra_kwargs.copy()
 
     def validate(self, attrs):
 
@@ -71,18 +91,3 @@ class UserLoginSerializer(JSONWebTokenSerializer):
         else:
             msg = 'Account with this email/username does not exists'
             return {'message': msg}
-
-
-class UserSerializer(ModelSerializer):
-
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email',
-                  'avatar', 'birth_date', 'phone', 'thumbnail']
-        extra_kwargs = {"password": {"write_only": True},
-                        "_state": {"write_only": True},
-                        "is_superuser": {"write_only": True},
-                        "is_staff": {"write_only": True},
-                        "is_active": {"write_only": True},
-                        "backend": {"write_only": True},
-                        }

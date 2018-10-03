@@ -4,16 +4,17 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-
+from rest_framework.exceptions import PermissionDenied
 from .heplers import validate_mandatory_fields, modify_user_reponse
 from .models import User
-from .serializers import UserCreateSerializer, UserLoginSerializer, UserSerializer
+from .serializers import UserLoginSerializer, UserSerializer
 from rest_framework_jwt.views import ObtainJSONWebToken
 from multilibrary.helpers import generate_formatted_response
+from .permissions import HasPermissionOrReadOnly
 
 
 class UserCreateView(CreateAPIView):
-    serializer_class = UserCreateSerializer
+    serializer_class = UserSerializer
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
 
@@ -30,7 +31,7 @@ class UserCreateView(CreateAPIView):
                 return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as error:
-            response_data = generate_formatted_response(status=False, payload={"message": error.__dict__['detail']})
+            response_data = generate_formatted_response(status=False, payload={"message": str(type(error))})
             return Response(response_data, status=error.__dict__.get('status'))
 
 
@@ -84,12 +85,12 @@ class UserVerifyView(APIView):
 
 
 class UserUpdateView(RetrieveUpdateAPIView):
-    # Allow only authenticated users to access this url
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, HasPermissionOrReadOnly)
     serializer_class = UserSerializer
 
     def get_object(self, user_pk=None):
         obj = User.objects.get(pk=user_pk)
+        self.check_object_permissions(self.request, obj)
         return obj
 
     def get(self, request, *args, **kwargs):
@@ -113,6 +114,14 @@ class UserUpdateView(RetrieveUpdateAPIView):
         except (ObjectDoesNotExist, ValueError):
             response_status = status.HTTP_404_NOT_FOUND
             response_data = generate_formatted_response(status=False, payload={'message': "This user doesn't exists!"})
+        except PermissionDenied:
+            response_status = status.HTTP_403_FORBIDDEN
+            response_data = generate_formatted_response(status=False,
+                                                        payload={'message': "You haven`t enough permissions!"})
+        except Exception as error:
+            print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
+            response_status = status.HTTP_400_BAD_REQUEST
+            response_data = generate_formatted_response(status=False, payload={'message': "Bad response!"})
         else:
             serializer_data = request.data.get('user', {})
             serializer = UserSerializer(
