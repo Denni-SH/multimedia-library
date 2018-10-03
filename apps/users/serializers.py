@@ -54,7 +54,7 @@ class UserLoginSerializer(JSONWebTokenSerializer):
     class Meta(UserSerializer.Meta):
         model = User
         fields = USER_FIELDS
-        extra_kwargs = UserSerializer.Meta.extra_kwargs.copy()
+        extra_kwargs = USER_EXTRA_KWARGS
 
     def validate(self, attrs):
 
