@@ -11,13 +11,13 @@ from multilibrary.helpers import generate_formatted_response
 
 from .heplers import validate_mandatory_fields, modify_user_reponse
 from .models import User
-from .serializers import UserLoginSerializer, UserSerializer
+from .serializers import UserLoginSerializer, UserSerializer, UserCreateSerializer
 from .pagination import UserPageNumberPagination
 from .permissions import HasPermissionOrReadOnly
 
 
 class UserCreateView(CreateAPIView):
-    serializer_class = UserSerializer
+    serializer_class = UserCreateSerializer
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
 
@@ -120,7 +120,7 @@ class UserUpdateView(RetrieveUpdateAPIView):
         except PermissionDenied:
             response_status = status.HTTP_403_FORBIDDEN
             response_data = generate_formatted_response(status=False,
-                                                        payload={'message': "You haven`t enough permissions!"})
+                                                        payload={'message': "You don't have enough permissions!"})
         except Exception as error:
             print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
             response_status = status.HTTP_400_BAD_REQUEST
