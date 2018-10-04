@@ -13,7 +13,7 @@ from .heplers import validate_mandatory_fields, modify_user_reponse
 from .models import User
 from .serializers import UserLoginSerializer, UserSerializer, UserCreateSerializer
 from .pagination import UserPageNumberPagination
-from .permissions import HasPermissionOrReadOnly
+from .permissions import HasPermissionOrReadOnly, IsVerified
 
 
 class UserCreateView(CreateAPIView):
@@ -88,7 +88,7 @@ class UserVerifyView(APIView):
 
 
 class UserUpdateView(RetrieveUpdateAPIView):
-    permission_classes = (IsAuthenticated, HasPermissionOrReadOnly)
+    permission_classes = (IsAuthenticated, HasPermissionOrReadOnly, IsVerified)
     serializer_class = UserSerializer
 
     def get_object(self, user_pk=None):
@@ -118,9 +118,7 @@ class UserUpdateView(RetrieveUpdateAPIView):
             response_status = status.HTTP_404_NOT_FOUND
             response_data = generate_formatted_response(status=False, payload={'message': "This user doesn't exists!"})
         except PermissionDenied:
-            response_status = status.HTTP_403_FORBIDDEN
-            response_data = generate_formatted_response(status=False,
-                                                        payload={'message': "You don't have enough permissions!"})
+            raise PermissionDenied
         except Exception as error:
             print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
             response_status = status.HTTP_400_BAD_REQUEST
@@ -142,6 +140,6 @@ class UserUpdateView(RetrieveUpdateAPIView):
 
 class UserListView(ListAPIView):
     pagination_class = UserPageNumberPagination
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsVerified)
     queryset = User.objects.all()
     serializer_class = UserSerializer
