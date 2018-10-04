@@ -1,15 +1,18 @@
 from django.db.models.base import ObjectDoesNotExist
-from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, ListAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
+from rest_framework_jwt.views import ObtainJSONWebToken
+
+from multilibrary.helpers import generate_formatted_response
+
 from .heplers import validate_mandatory_fields, modify_user_reponse
 from .models import User
 from .serializers import UserLoginSerializer, UserSerializer
-from rest_framework_jwt.views import ObtainJSONWebToken
-from multilibrary.helpers import generate_formatted_response
+from .pagination import UserPageNumberPagination
 from .permissions import HasPermissionOrReadOnly
 
 
@@ -135,3 +138,10 @@ class UserUpdateView(RetrieveUpdateAPIView):
             response_data = generate_formatted_response(status=True, payload={'user': serializer.data})
 
         return Response(response_data, status=response_status)
+
+
+class UserListView(ListAPIView):
+    pagination_class = UserPageNumberPagination
+    permission_classes = (IsAuthenticated,)
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
