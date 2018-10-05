@@ -16,4 +16,4 @@ class HasPermissionOrReadOnly(permissions.BasePermission):
 class IsVerified(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
-        return obj.is_verified
+        return request.user.is_verified

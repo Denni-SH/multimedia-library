@@ -1,10 +1,9 @@
 import uuid
 
 from django.contrib.auth.hashers import make_password
-from django.db.models import signals
-
 from django.contrib.auth.models import AbstractUser
-from django.db.models import DateField, CharField, ImageField, BooleanField, UUIDField, EmailField
+from django.db.models import signals, DateField, CharField, ImageField, BooleanField, UUIDField, EmailField
+
 from .tasks import send_verification_email
 
 

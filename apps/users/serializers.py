@@ -1,18 +1,19 @@
 import copy
 from rest_framework.compat import authenticate
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, ImageField
 from rest_framework_jwt.serializers import JSONWebTokenSerializer, jwt_payload_handler, jwt_encode_handler
 
 from .models import User
 
-USER_EXTRA_KWARGS = {("password",
+USER_EXTRA_KWARGS = {(
                       "_state",
                       "is_superuser",
                       "is_staff",
                       "is_active",
                       "backend"
                       ): {"write_only": True},
-                     "email": {"read_only": True}
+                     "email": {"read_only": True},
+                     "thumbnail": {"read_only": True}
                      }
 
 USER_FIELDS = ['id',
@@ -23,18 +24,21 @@ USER_FIELDS = ['id',
                'avatar',
                'birth_date',
                'phone',
-               'thumbnail']
+               'thumbnail',
+               'password']
 
 
 class UserSerializer(ModelSerializer):
+    avatar = ImageField(max_length=None, use_url=True)
+
     class Meta:
         model = User
         fields = USER_FIELDS
-        extra_kwargs = USER_EXTRA_KWARGS
+        extra_kwargs = copy.deepcopy(USER_EXTRA_KWARGS)
+        # extra_kwargs['avatar'] = {"read_only": True}
 
 
 class UserCreateSerializer(ModelSerializer):
-
     class Meta:
         model = User
         fields = USER_FIELDS
