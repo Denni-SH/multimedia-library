@@ -1,20 +1,21 @@
 import copy
 from rest_framework.compat import authenticate
-from rest_framework.serializers import ModelSerializer, ImageField
+from rest_framework.serializers import ModelSerializer, CharField
 from rest_framework_jwt.serializers import JSONWebTokenSerializer, jwt_payload_handler, jwt_encode_handler
 
 from .models import User
 
-USER_EXTRA_KWARGS = {(
-                      "_state",
-                      "is_superuser",
-                      "is_staff",
-                      "is_active",
-                      "backend"
-                      ): {"write_only": True},
-                     "email": {"read_only": True},
-                     "thumbnail": {"read_only": True}
-                     }
+USER_EXTRA_KWARGS = dict.fromkeys(['_state',
+                                   'is_superuser',
+                                   'is_staff',
+                                   'password',
+                                   'is_active',
+                                   'backend'
+                                   ], {"write_only": True})
+USER_EXTRA_KWARGS.update(dict.fromkeys(['email',
+                                        'thumbnail'
+                                        ], {"read_only": True}))
+
 
 USER_FIELDS = ['id',
                'username',
@@ -24,24 +25,23 @@ USER_FIELDS = ['id',
                'avatar',
                'birth_date',
                'phone',
-               'thumbnail',
-               'password']
+               'thumbnail']
 
 
 class UserSerializer(ModelSerializer):
-    avatar = ImageField(max_length=None, use_url=True)
+    avatar = CharField(max_length=None)
 
     class Meta:
         model = User
         fields = USER_FIELDS
         extra_kwargs = copy.deepcopy(USER_EXTRA_KWARGS)
-        # extra_kwargs['avatar'] = {"read_only": True}
 
 
 class UserCreateSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = USER_FIELDS
+        fields = copy.deepcopy(USER_FIELDS)
+        fields.append('password')
         extra_kwargs = copy.deepcopy(USER_EXTRA_KWARGS)
         extra_kwargs['email']['read_only'] = False
 

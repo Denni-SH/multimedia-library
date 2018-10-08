@@ -7,12 +7,16 @@ from django.db.models import signals, DateField, CharField, ImageField, BooleanF
 from .tasks import send_verification_email
 
 
+def user_directory_path(instance, filename):
+    return f'{instance.pk}/{filename}'
+
+
 class User(AbstractUser):
-    avatar = ImageField(blank=True, default='media/default/default-user.jpg')
+    avatar = ImageField(blank=True, default='default/default-user.jpg', upload_to=user_directory_path)
     birth_date = DateField(null=True, blank=True, default=None)
     email = EmailField('email', unique=True, blank=True, null=False)
     phone = CharField(max_length=20, blank=True, default=None, null=True)
-    thumbnail = ImageField(blank=True, default='media/default/default-user.jpg')
+    thumbnail = ImageField(blank=True, default='default/default-user.jpg')
     is_verified = BooleanField('verified', default=False)
     verification_uuid = UUIDField('Unique Verification UUID', default=uuid.uuid4)
 

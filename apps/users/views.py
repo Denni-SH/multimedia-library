@@ -1,5 +1,4 @@
-import base64
-import os
+
 
 from django.db.models.base import ObjectDoesNotExist
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, ListAPIView
@@ -11,9 +10,8 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_jwt.views import ObtainJSONWebToken
 
 from multilibrary.helpers import generate_formatted_response
-from multilibrary.settings import MEDIA_ROOT
 
-from .heplers import validate_mandatory_fields, modify_user_reponse
+from .heplers import validate_mandatory_fields, modify_user_reponse, check_or_save_image
 from .models import User
 from .serializers import UserLoginSerializer, UserSerializer, UserCreateSerializer
 from .pagination import UserPageNumberPagination
@@ -102,7 +100,7 @@ class UserUpdateView(RetrieveUpdateAPIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            user_pk = int(kwargs['pk'])
+            user_pk = int(kwargs['pk']) if kwargs.get('pk') else request.user.pk
             user_instance = self.get_object(user_pk)
         except (ObjectDoesNotExist, ValueError):
             response_status = status.HTTP_404_NOT_FOUND
@@ -132,7 +130,6 @@ class UserUpdateView(RetrieveUpdateAPIView):
             serializer = UserSerializer(
                 user_instance, data=serializer_data, partial=True
             )
-
             serializer.is_valid(raise_exception=True)
             serializer.save()
 
@@ -141,45 +138,37 @@ class UserUpdateView(RetrieveUpdateAPIView):
 
         return Response(response_data, status=response_status)
 
-    # def patch(self, request, *args, **kwargs):
-    #
-    #     try:
-    #         user_pk = request.user.pk
-    #         user_instance = self.get_object(user_pk)
-    #         image = request.data.get('avatar', None)
-    #         image_filename = request.data.get('filename', 'avatar.jpg')
-    #         image_path = f'{MEDIA_ROOT}/{user_pk}'
-    #         if not os.path.exists(image_path):
-    #             os.makedirs(image_path)
-    #         full_path = f'{image_path}/{image_filename}'
-    #         print(full_path)
-    #         with open(full_path, "w+b") as new_image:
-    #             new_image.write(base64.urlsafe_b64decode(image.encode()))
-    #         with open(full_path, "r") as few_image:
-    #             few_image.read()
-    #         serializer_data = {"avatar": new_image}
-    #         serializer = UserSerializer(
-    #             user_instance, data=serializer_data, partial=True
-    #         )
-    #
-    #         serializer.is_valid(raise_exception=True)
-    #         serializer.save()
-    #     except (ObjectDoesNotExist, ValueError) as error:
-    #         print(type(error), error)
-    #         response_status = status.HTTP_404_NOT_FOUND
-    #         response_data = generate_formatted_response(status=False, payload={'message': "This user doesn't exists!"})
-    #     except PermissionDenied:
-    #         raise PermissionDenied
-    #     except Exception as error:
-    #         print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
-    #         response_status = status.HTTP_400_BAD_REQUEST
-    #         response_data = generate_formatted_response(status=False, payload={'message': "Bad response!"})
-    #     else:
-    #         response_status = status.HTTP_200_OK
-    #         response_data = generate_formatted_response(status=True, payload={'user': serializer.data})
-    #
-    #     return Response(response_data, status=response_status)
+    def patch(self, request, *args, **kwargs):
+        try:
+            user_pk = request.user.pk
+            user_instance = self.get_object(user_pk)
+            user_avatar = request.data.get('avatar', None)
+            if user_avatar:
+                avatar_filename = str(user_avatar)
+                check_or_save_image(user_pk, avatar_filename, user_avatar)
+                serializer_data = {"avatar": f'{user_pk}/{avatar_filename}'}
+                serializer = UserSerializer(
+                    user_instance, data=serializer_data, partial=True
+                )
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                user_data = serializer.data
+            else:
+                user_data = UserSerializer(user_instance).data
+            response_status = status.HTTP_200_OK
+            response_data = generate_formatted_response(status=True, payload={'user': user_data})
 
+        except (ObjectDoesNotExist, ValueError) as error:
+            print(type(error), error)
+            response_status = status.HTTP_404_NOT_FOUND
+            response_data = generate_formatted_response(status=False, payload={'message': "This user doesn't exists!"})
+        except PermissionDenied:
+            raise PermissionDenied
+        except Exception as error:
+            print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
+            response_status = status.HTTP_400_BAD_REQUEST
+            response_data = generate_formatted_response(status=False, payload={'message': "Bad response!"})
+        return Response(response_data, status=response_status)
 
 class UserListView(ListAPIView):
     pagination_class = UserPageNumberPagination
