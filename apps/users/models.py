@@ -36,9 +36,9 @@ class User(AbstractUser):
         return self.username if self.username else '%s %s' % (self.first_name, self.last_name)
 
 
-def user_post_save(instance, **kwargs):
+def user_post_save(sender, instance, signal, *args, **kwargs):
     if not instance.is_verified:
         send_verification_email.delay(instance.pk)
 
 
-signals.post_save.connect(user_post_save)
+signals.post_save.connect(user_post_save, sender=User)
