@@ -10,7 +10,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_jwt.views import ObtainJSONWebToken
 
 from multilibrary.helpers import generate_formatted_response
-from multilibrary.settings import MEDIA_ROOT
+from multilibrary.settings import MEDIA_ROOT, IMAGE_MAX_SIZE
 
 from .heplers import validate_mandatory_fields, modify_user_reponse, is_exist_or_save_image
 from .models import User
@@ -145,7 +145,7 @@ class UserUpdateView(RetrieveUpdateAPIView):
             user_pk = request.user.pk
             user_instance = self.get_object(user_pk)
             user_avatar = request.data.get('avatar', None)
-            if user_avatar and user_avatar.size <= 7 * 1024 * 1024:
+            if user_avatar and user_avatar.size <= IMAGE_MAX_SIZE * 1024 * 1024:
                 filename, ext = f'{datetime.now().timestamp()}', 'png'
                 avatar_rel_path = f'{user_pk}/{filename}.{ext}'
                 avatar_abs_path = f'{MEDIA_ROOT}/{avatar_rel_path}'
@@ -164,7 +164,7 @@ class UserUpdateView(RetrieveUpdateAPIView):
                 serializer.save()
 
                 user_data = serializer.data
-            elif user_avatar.size > 7 * 1024 * 1024:
+            elif user_avatar.size > IMAGE_MAX_SIZE * 1024 * 1024:
                 raise Exception({'message': "Image is bigger than 7 MB!"})
             else:
                 user_data = UserSerializer(user_instance).data
