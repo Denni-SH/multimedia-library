@@ -1,4 +1,4 @@
-
+from datetime import datetime
 
 from django.db.models.base import ObjectDoesNotExist
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, ListAPIView
@@ -10,10 +10,12 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_jwt.views import ObtainJSONWebToken
 
 from multilibrary.helpers import generate_formatted_response
+from multilibrary.settings import MEDIA_ROOT
 
-from .heplers import validate_mandatory_fields, modify_user_reponse, check_or_save_image
+from .heplers import validate_mandatory_fields, modify_user_reponse, is_exist_or_save_image
 from .models import User
 from .serializers import UserLoginSerializer, UserSerializer, UserCreateSerializer
+from .tasks import save_thumbnail
 from .pagination import UserPageNumberPagination
 from .permissions import HasPermissionOrReadOnly, IsVerified
 
@@ -143,32 +145,44 @@ class UserUpdateView(RetrieveUpdateAPIView):
             user_pk = request.user.pk
             user_instance = self.get_object(user_pk)
             user_avatar = request.data.get('avatar', None)
-            if user_avatar:
-                avatar_filename = str(user_avatar)
-                check_or_save_image(user_pk, avatar_filename, user_avatar)
-                serializer_data = {"avatar": f'{user_pk}/{avatar_filename}'}
+            if user_avatar and user_avatar.size <= 7 * 1024 * 1024:
+                filename, ext = f'{datetime.now().timestamp()}', 'png'
+                avatar_rel_path = f'{user_pk}/{filename}.{ext}'
+                avatar_abs_path = f'{MEDIA_ROOT}/{avatar_rel_path}'
+                thumb_rel_path = f'{user_pk}/{filename}_thumb.{ext}'
+                thumb_abs_path = f'{MEDIA_ROOT}/{thumb_rel_path}'
+
+                is_exist_or_save_image(user_pk, avatar_abs_path, user_avatar)
+                save_thumbnail.delay(user_pk, thumb_abs_path, avatar_abs_path)
+                serializer_data = {"avatar": avatar_rel_path,
+                                   "thumbnail": thumb_rel_path}
+
                 serializer = UserSerializer(
                     user_instance, data=serializer_data, partial=True
                 )
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
+
                 user_data = serializer.data
+            elif user_avatar.size > 7 * 1024 * 1024:
+                raise Exception({'message': "Image is bigger than 7 MB!"})
             else:
                 user_data = UserSerializer(user_instance).data
             response_status = status.HTTP_200_OK
             response_data = generate_formatted_response(status=True, payload={'user': user_data})
 
-        except (ObjectDoesNotExist, ValueError) as error:
-            print(type(error), error)
+        except (ObjectDoesNotExist, ValueError):
             response_status = status.HTTP_404_NOT_FOUND
             response_data = generate_formatted_response(status=False, payload={'message': "This user doesn't exists!"})
         except PermissionDenied:
             raise PermissionDenied
         except Exception as error:
             print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
+            payload = error.args[0].get('message') if error.args and error.args[0].get('message') else "Bad response!"
             response_status = status.HTTP_400_BAD_REQUEST
-            response_data = generate_formatted_response(status=False, payload={'message': "Bad response!"})
+            response_data = generate_formatted_response(status=False, payload={'message': payload})
         return Response(response_data, status=response_status)
+
 
 class UserListView(ListAPIView):
     pagination_class = UserPageNumberPagination

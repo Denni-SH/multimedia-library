@@ -1,7 +1,7 @@
 import os
-from multilibrary.settings import MEDIA_ROOT
 
-from apps.users.models import User
+from multilibrary.settings import MEDIA_ROOT
+from .models import User
 
 
 def validate_mandatory_fields(data, fields=set()):
@@ -29,12 +29,11 @@ def modify_user_reponse(response_instance):
     return response_instance
 
 
-def check_or_save_image(user_pk, avatar_filename, user_avatar):
+def is_exist_or_save_image(user_pk, avatar_path, user_avatar):
     image_path = f'{MEDIA_ROOT}/{user_pk}'
-    full_path = f'{image_path}/{avatar_filename}'
 
     if not os.path.exists(image_path):
         os.makedirs(image_path)
-    with open(full_path, "wb") as new_image:
+    with open(avatar_path, "wb") as new_image:
         for chunk in user_avatar.chunks():
             new_image.write(chunk)

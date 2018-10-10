@@ -30,6 +30,7 @@ USER_FIELDS = ['id',
 
 class UserSerializer(ModelSerializer):
     avatar = CharField(max_length=None)
+    thumbnail = CharField(max_length=None)
 
     class Meta:
         model = User
