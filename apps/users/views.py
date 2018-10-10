@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from django.db.models.base import ObjectDoesNotExist
-from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, ListAPIView
+from django.contrib.auth import authenticate
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -91,7 +92,7 @@ class UserVerifyView(APIView):
         return Response(response_data, status=response_status)
 
 
-class UserUpdateView(RetrieveUpdateAPIView):
+class UserRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated, HasPermissionOrReadOnly, IsVerified)
     serializer_class = UserSerializer
 
@@ -180,6 +181,27 @@ class UserUpdateView(RetrieveUpdateAPIView):
             print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
             payload = error.args[0].get('message') if error.args and error.args[0].get('message') else "Bad response!"
             response_status = status.HTTP_400_BAD_REQUEST
+            response_data = generate_formatted_response(status=False, payload={'message': payload})
+        return Response(response_data, status=response_status)
+
+    def delete(self, request, *args, **kwargs):
+        try:
+            user = request.user
+            request_password = request.data.get('password')
+            if not request_password:
+                raise Exception({'message': "Request doesn't contain password field!"})
+            validated_user = authenticate(username=user.username, password=request_password)
+            if validated_user:
+                user.delete()
+                response_status = status.HTTP_200_OK
+                response_data = generate_formatted_response(status=True, payload={'message': 'Success removed!'})
+            else:
+                raise Exception({'message': 'Password is incorrect!', 'status': status.HTTP_403_FORBIDDEN})
+        except Exception as error:
+            print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
+            payload = error.args[0].get('message') if error.args and error.args[0].get('message') else "Bad response!"
+            response_status = error.args[0].get('status') \
+                if error.args and error.args[0].get('status') else status.HTTP_400_BAD_REQUEST
             response_data = generate_formatted_response(status=False, payload={'message': payload})
         return Response(response_data, status=response_status)
 
