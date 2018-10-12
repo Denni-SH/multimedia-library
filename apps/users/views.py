@@ -13,7 +13,7 @@ from rest_framework_jwt.views import ObtainJSONWebToken
 from multilibrary.helpers import generate_formatted_response
 from multilibrary.settings import MEDIA_ROOT, IMAGE_MAX_SIZE
 
-from .heplers import validate_mandatory_fields, modify_user_reponse, is_exist_or_save_image
+from .heplers import validate_mandatory_fields, modify_user_response, is_exist_or_save_image
 from .models import User
 from .serializers import UserLoginSerializer, UserSerializer, UserCreateSerializer
 from .tasks import save_thumbnail
@@ -55,7 +55,7 @@ class UserLoginView(ObtainJSONWebToken):
             user = serializer.object.get('user') or request.user
             token = serializer.object.get('token')
             if user and token:
-                user_instance = modify_user_reponse(UserLoginSerializer(user).instance.__dict__)
+                user_instance = modify_user_response(UserLoginSerializer(user).instance.__dict__)
                 response_status = status.HTTP_200_OK
                 payload = {'user': user_instance,
                            'token': token}

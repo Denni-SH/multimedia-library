@@ -19,7 +19,7 @@ def validate_mandatory_fields(data, fields=set()):
     return True, data
 
 
-def modify_user_reponse(response_instance):
+def modify_user_response(response_instance):
     del response_instance['_state'],\
         response_instance['password'],\
         response_instance['is_superuser'],\
