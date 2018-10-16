@@ -40,15 +40,39 @@ class FileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
         self.check_object_permissions(self.request, obj.owner)
         return obj
 
+    def get(self, request, *args, **kwargs):
+        try:
+            file_pk = int(kwargs['pk'])
+            serializer = self.serializer_class(self.get_object(file_pk))
+            response_status = status.HTTP_200_OK
+            response_data = generate_formatted_response(status=True, payload={'file': serializer.data})
+        except Exception as error:
+            if error.args and error.args[0].get('message'):
+                payload = error.args[0].get('message')
+            elif hasattr(error, 'detail'):
+                payload = error.detail
+            else:
+                payload = "Bad response!"
+
+            if error.args and error.args[0].get('status'):
+                response_status = error.args[0].get('status')
+            elif error.args and error.args[0].get('status_code'):
+                response_status = error.args[0].get('status_code')
+            elif hasattr(error, 'status_code'):
+                response_status = error.status_code
+            else:
+                response_status = status.HTTP_400_BAD_REQUEST
+            response_data = generate_formatted_response(status=False, payload={'message': payload})
+        return Response(response_data, status=response_status)
+
     def delete(self, request, *args, **kwargs):
         try:
             file_pk = int(kwargs['pk'])
-            if file_pk:
-                file_instance = UserFile.objects.filter(pk=file_pk)
-                if file_instance and self.get_object(file_pk):
-                    file_instance.delete()
-                    response_status = status.HTTP_200_OK
-                    response_data = generate_formatted_response(status=True, payload={'message': 'Success removed!'})
+            file_instance = self.get_object(file_pk)
+            if file_instance and self.get_object(file_pk):
+                file_instance.delete()
+                response_status = status.HTTP_200_OK
+                response_data = generate_formatted_response(status=True, payload={'message': 'Success removed!'})
             else:
                 raise Exception()
         except Exception as error:
@@ -75,7 +99,7 @@ class FileCreateView(CreateAPIView):
     queryset = UserFile.objects.all()
     serializer_class = FileSerializer
     permission_classes = [IsAuthenticated, IsVerified]
-    parser_classes=(MultiPartParser, )
+    parser_classes = (MultiPartParser, )
 
     def post(self, request, *args, **kwargs):
         try:
