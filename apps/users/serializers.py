@@ -1,5 +1,6 @@
 import copy
 from rest_framework.compat import authenticate
+from rest_framework.relations import RelatedField
 from rest_framework.serializers import ModelSerializer, CharField
 from rest_framework_jwt.serializers import JSONWebTokenSerializer, jwt_payload_handler, jwt_encode_handler
 
@@ -31,6 +32,7 @@ USER_FIELDS = ['id',
 class UserSerializer(ModelSerializer):
     avatar = CharField(max_length=None)
     thumbnail = CharField(max_length=None)
+    # files = RelatedField(many=True, read_only=True)
 
     class Meta:
         model = User

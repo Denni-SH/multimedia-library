@@ -11,9 +11,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_jwt.views import ObtainJSONWebToken
 
 from multilibrary.helpers import generate_formatted_response
-from multilibrary.settings import MEDIA_ROOT, IMAGE_MAX_SIZE
+from multilibrary.settings import MEDIA_ROOT, IMAGE_MAX_SIZE, IMAGE_MAX_SIZE_NUMBER
 
-from .heplers import validate_mandatory_fields, modify_user_response, is_exist_or_save_image
+from apps.files.helpers import is_exist_or_save_file
+
+from .heplers import validate_mandatory_fields, modify_user_response
 from .models import User
 from .serializers import UserLoginSerializer, UserSerializer, UserCreateSerializer
 from .tasks import save_thumbnail
@@ -146,14 +148,14 @@ class UserRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
             user_pk = request.user.pk
             user_instance = self.get_object(user_pk)
             user_avatar = request.data.get('avatar', None)
-            if user_avatar and user_avatar.size <= IMAGE_MAX_SIZE * 1024 * 1024:
+            if user_avatar and user_avatar.size <= IMAGE_MAX_SIZE:
                 filename, ext = f'{datetime.now().timestamp()}', 'png'
                 avatar_rel_path = f'{user_pk}/{filename}.{ext}'
                 avatar_abs_path = f'{MEDIA_ROOT}/{avatar_rel_path}'
                 thumb_rel_path = f'{user_pk}/{filename}_thumb.{ext}'
                 thumb_abs_path = f'{MEDIA_ROOT}/{thumb_rel_path}'
 
-                is_exist_or_save_image(user_pk, avatar_abs_path, user_avatar)
+                is_exist_or_save_file(user_pk, avatar_abs_path, user_avatar)
                 save_thumbnail.delay(user_pk, thumb_abs_path, avatar_abs_path)
                 serializer_data = {"avatar": avatar_rel_path,
                                    "thumbnail": thumb_rel_path}
@@ -165,8 +167,8 @@ class UserRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
                 serializer.save()
 
                 user_data = serializer.data
-            elif user_avatar.size > IMAGE_MAX_SIZE * 1024 * 1024:
-                raise Exception({'message': "Image is bigger than 7 MB!"})
+            elif user_avatar.size > IMAGE_MAX_SIZE:
+                raise Exception({'message': f"Image is bigger than {IMAGE_MAX_SIZE_NUMBER} MB!"})
             else:
                 user_data = UserSerializer(user_instance).data
             response_status = status.HTTP_200_OK

@@ -17,7 +17,7 @@ class UserFile(Model):
     title = CharField(blank=True, null=False, max_length=20, default='Default_title', unique=True)
     slug = SlugField(unique=True)
     media_category = CharField(max_length=15, choices=[(item, item) for item in MEDIA_CATEGORIES])
-    owner = ForeignKey(AUTH_USER_MODEL, on_delete=CASCADE)
+    owner = ForeignKey(AUTH_USER_MODEL, on_delete=CASCADE, related_name='files')
     description = TextField()
     file = FileField(blank=True, null=False, upload_to=file_directory_path)
     thumbnail = ImageField(blank=True, null=False, default='default/default-file.jpg')
