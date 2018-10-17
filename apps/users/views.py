@@ -7,11 +7,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
 from rest_framework_jwt.views import ObtainJSONWebToken
 
 from multilibrary.helpers import generate_formatted_response
 from multilibrary.settings import MEDIA_ROOT, IMAGE_MAX_SIZE, IMAGE_MAX_SIZE_NUMBER
+from multilibrary.exceptions import CommonExceptionHandler as error_handler
 
 from apps.files.helpers import is_exist_or_save_file
 
@@ -35,41 +35,41 @@ class UserCreateView(CreateAPIView):
             if validation_status:
                 user = self.create(request, *args, **kwargs)
                 response_data = generate_formatted_response(status=True, payload={"user": user.data})
-                return Response(response_data, status=status.HTTP_201_CREATED)
+                response_status = status.HTTP_201_CREATED
             else:
-                response_data = generate_formatted_response(status=False, payload={"message": validation_result})
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-
+                raise Exception(validation_result)
         except Exception as error:
-            response_data = generate_formatted_response(status=False, payload={"message": str(type(error))})
-            return Response(response_data, status=error.__dict__.get('status'))
+            if error.args: error.message = error.args
+            response_data, response_status = error_handler.get_response_data_and_status(error)
+        return Response(response_data, status=response_status)
 
 
 class UserLoginView(ObtainJSONWebToken):
     serializer_class = UserLoginSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(
-            data=request.data
-        )
+        try:
+            serializer = self.get_serializer(
+                data=request.data
+            )
 
-        if serializer.is_valid():
-            user = serializer.object.get('user') or request.user
-            token = serializer.object.get('token')
-            if user and token:
-                user_instance = modify_user_response(UserLoginSerializer(user).instance.__dict__)
-                response_status = status.HTTP_200_OK
-                payload = {'user': user_instance,
-                           'token': token}
-                response_data = generate_formatted_response(status=True, payload=payload)
+            if serializer.is_valid():
+                user = serializer.object.get('user') or request.user
+                token = serializer.object.get('token')
+                if user and token:
+                    user_instance = modify_user_response(UserLoginSerializer(user).instance.__dict__)
+                    response_status = status.HTTP_200_OK
+                    payload = {'user': user_instance,
+                               'token': token}
+                    response_data = generate_formatted_response(status=True, payload=payload)
+                else:
+                    raise Exception(serializer.object.get('message'), status.HTTP_401_UNAUTHORIZED)
             else:
-                response_status = status.HTTP_401_UNAUTHORIZED
-                payload = {'message': serializer.object.get('message')}
-                response_data = generate_formatted_response(status=False, payload=payload)
-        else:
-            response_status = status.HTTP_400_BAD_REQUEST
-            payload = {'message': 'Mandatory fields are missed!'}
-            response_data = generate_formatted_response(status=False, payload=payload)
+                raise Exception('Mandatory fields are missed!', status.HTTP_400_BAD_REQUEST)
+        except Exception as error:
+            if error.args: error.message, error.status = error.args
+            response_data, response_status = error_handler.get_response_data_and_status(error)
+
         return Response(response_data, status=response_status)
 
 
@@ -80,16 +80,16 @@ class UserVerifyView(APIView):
     def get(request, uuid):
         try:
             user = User.objects.get(verification_uuid=uuid, is_verified=False)
-        except User.DoesNotExist:
-            payload = {'message': "User does not exist or is already verified"}
-            response_status = status.HTTP_404_NOT_FOUND
-            response_data = generate_formatted_response(status=False, payload=payload)
-            return Response(response_data, status=response_status)
-        else:
             user.is_verified = True
             user.save()
             response_status = status.HTTP_200_OK
             response_data = generate_formatted_response(status=True, payload={})
+        except User.DoesNotExist as error:
+            error.message = "User does not exist or is already verified"
+            error.status = status.HTTP_404_NOT_FOUND
+            response_data, response_status = error_handler.get_response_data_and_status(error)
+        except Exception as error:
+            response_data, response_status = error_handler.get_response_data_and_status(error)
 
         return Response(response_data, status=response_status)
 
@@ -107,13 +107,16 @@ class UserRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
         try:
             user_pk = int(kwargs['pk']) if kwargs.get('pk') else request.user.pk
             user_instance = self.get_object(user_pk)
-        except (ObjectDoesNotExist, ValueError):
-            response_status = status.HTTP_404_NOT_FOUND
-            response_data = generate_formatted_response(status=False, payload={'message': "This user doesn't exists!"})
-        else:
             serializer = self.serializer_class(user_instance)
+
             response_status = status.HTTP_200_OK
             response_data = generate_formatted_response(status=True, payload={'user': serializer.data})
+        except (ObjectDoesNotExist, ValueError) as error:
+            error.message = "This user doesn't exists!"
+            error.status = status.HTTP_404_NOT_FOUND
+            response_data, response_status = error_handler.get_response_data_and_status(error)
+        except Exception as error:
+            response_data, response_status = error_handler.get_response_data_and_status(error)
 
         return Response(response_data, status=response_status)
 
@@ -121,16 +124,6 @@ class UserRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
         try:
             user_pk = request.user.pk
             user_instance = self.get_object(user_pk)
-        except (ObjectDoesNotExist, ValueError):
-            response_status = status.HTTP_404_NOT_FOUND
-            response_data = generate_formatted_response(status=False, payload={'message': "This user doesn't exists!"})
-        except PermissionDenied:
-            raise PermissionDenied
-        except Exception as error:
-            print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
-            response_status = status.HTTP_400_BAD_REQUEST
-            response_data = generate_formatted_response(status=False, payload={'message': "Bad response!"})
-        else:
             serializer_data = request.data.get('user', {})
             serializer = UserSerializer(
                 user_instance, data=serializer_data, partial=True
@@ -140,6 +133,12 @@ class UserRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 
             response_status = status.HTTP_200_OK
             response_data = generate_formatted_response(status=True, payload={'user': serializer.data})
+        except (ObjectDoesNotExist, ValueError) as error:
+            error.message = "This user doesn't exists!"
+            error.status = status.HTTP_404_NOT_FOUND
+            response_data, response_status = error_handler.get_response_data_and_status(error)
+        except Exception as error:
+            response_data, response_status = error_handler.get_response_data_and_status(error)
 
         return Response(response_data, status=response_status)
 
@@ -165,25 +164,21 @@ class UserRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
                 )
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
-
                 user_data = serializer.data
             elif user_avatar.size > IMAGE_MAX_SIZE:
-                raise Exception({'message': f"Image is bigger than {IMAGE_MAX_SIZE_NUMBER} MB!"})
+                raise Exception(f"Image is bigger than {IMAGE_MAX_SIZE_NUMBER} MB!")
             else:
                 user_data = UserSerializer(user_instance).data
             response_status = status.HTTP_200_OK
             response_data = generate_formatted_response(status=True, payload={'user': user_data})
 
-        except (ObjectDoesNotExist, ValueError):
-            response_status = status.HTTP_404_NOT_FOUND
-            response_data = generate_formatted_response(status=False, payload={'message': "This user doesn't exists!"})
-        except PermissionDenied:
-            raise PermissionDenied
+        except (ObjectDoesNotExist, ValueError) as error:
+            error.message = "This user doesn't exists!"
+            error.status = status.HTTP_404_NOT_FOUND
+            response_data, response_status = error_handler.get_response_data_and_status(error)
         except Exception as error:
-            print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
-            payload = error.args[0].get('message') if error.args and error.args[0].get('message') else "Bad response!"
-            response_status = status.HTTP_400_BAD_REQUEST
-            response_data = generate_formatted_response(status=False, payload={'message': payload})
+            if error.args: error.message = error.args[0]
+            response_data, response_status = error_handler.get_response_data_and_status(error)
         return Response(response_data, status=response_status)
 
     def delete(self, request, *args, **kwargs):
@@ -200,11 +195,7 @@ class UserRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
             else:
                 raise Exception({'message': 'Password is incorrect!', 'status': status.HTTP_403_FORBIDDEN})
         except Exception as error:
-            print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
-            payload = error.args[0].get('message') if error.args and error.args[0].get('message') else "Bad response!"
-            response_status = error.args[0].get('status') \
-                if error.args and error.args[0].get('status') else status.HTTP_400_BAD_REQUEST
-            response_data = generate_formatted_response(status=False, payload={'message': payload})
+            response_data, response_status = error_handler.get_response_data_and_status(error)
         return Response(response_data, status=response_status)
 
 

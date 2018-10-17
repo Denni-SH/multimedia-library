@@ -8,7 +8,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.filters import OrderingFilter
+from django.core.exceptions import ObjectDoesNotExist
 
+from multilibrary.exceptions import CommonExceptionHandler as error_handler
 from multilibrary.helpers import generate_formatted_response
 from multilibrary.settings import MEDIA_ROOT, FILE_MAX_SIZE, FILE_MAX_SIZE_NUMBER
 
@@ -47,22 +49,7 @@ class FileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
             response_status = status.HTTP_200_OK
             response_data = generate_formatted_response(status=True, payload={'file': serializer.data})
         except Exception as error:
-            if error.args and error.args[0].get('message'):
-                payload = error.args[0].get('message')
-            elif hasattr(error, 'detail'):
-                payload = error.detail
-            else:
-                payload = "Bad response!"
-
-            if error.args and error.args[0].get('status'):
-                response_status = error.args[0].get('status')
-            elif error.args and error.args[0].get('status_code'):
-                response_status = error.args[0].get('status_code')
-            elif hasattr(error, 'status_code'):
-                response_status = error.status_code
-            else:
-                response_status = status.HTTP_400_BAD_REQUEST
-            response_data = generate_formatted_response(status=False, payload={'message': payload})
+            response_data, response_status = error_handler.get_response_data_and_status(error)
         return Response(response_data, status=response_status)
 
     def delete(self, request, *args, **kwargs):
@@ -75,23 +62,12 @@ class FileRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
                 response_data = generate_formatted_response(status=True, payload={'message': 'Success removed!'})
             else:
                 raise Exception()
+        except ObjectDoesNotExist as error:
+            error.message = "File doesn't exists!"
+            error.status = status.HTTP_403_FORBIDDEN
+            response_data, response_status = error_handler.get_response_data_and_status(error)
         except Exception as error:
-            if error.args and error.args[0].get('message'):
-                payload = error.args[0].get('message')
-            elif hasattr(error, 'detail'):
-                payload = error.detail
-            else:
-                payload = "Bad response!"
-
-            if error.args and error.args[0].get('status'):
-                response_status = error.args[0].get('status')
-            elif error.args and error.args[0].get('status_code'):
-                response_status = error.args[0].get('status_code')
-            elif hasattr(error, 'status_code'):
-                response_status = error.status_code
-            else:
-                response_status = status.HTTP_400_BAD_REQUEST
-            response_data = generate_formatted_response(status=False, payload={'message': payload})
+            response_data, response_status = error_handler.get_response_data_and_status(error)
         return Response(response_data, status=response_status)
 
 
@@ -125,14 +101,10 @@ class FileCreateView(CreateAPIView):
                     response_status = status.HTTP_200_OK
                     response_data = generate_formatted_response(status=True, payload={'file': serializer.data})
                 else:
-                    raise Exception({'message': "You have the file with this title already! Rename it please."})
+                    raise Exception("You have the file with this title already! Rename it please.")
             else:
-                raise Exception({'message': f"Please import file with size smaller than {FILE_MAX_SIZE_NUMBER} GB!"})
+                raise Exception(f"Please import file with size smaller than {FILE_MAX_SIZE_NUMBER} GB!")
         except Exception as error:
-                print(f'{type(error)}:{error.detail}') if hasattr(error, 'detail') else f'{type(error)}'
-                payload = error.args[0].get('message') \
-                    if error.args and hasattr(error.args[0], 'get') and error.args[0].get('message') \
-                    else "Bad request!"
-                response_status = status.HTTP_400_BAD_REQUEST
-                response_data = generate_formatted_response(status=False, payload={'message': payload})
+            if error.args: error.message = error.args[0]
+            response_data, response_status = error_handler.get_response_data_and_status(error)
         return Response(response_data, status=response_status)
